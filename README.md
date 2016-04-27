@@ -1,8 +1,12 @@
 # Train a Smartcab How to Drive
 
-Reinforcement Learning Project v1 2016/04/25
+Reinforcement Learning Project 
+v2 2016/04/27
+v1 2016/04/25
 
 ## Instructor notes
+Updated Smartcab.pdf - elaborated on the final discussion about optimal policy in respect to the agent. 
+
 FYI - Slightly modified environment.py and planner.py to notify the agent the game has finished by propagating the 
 message to agent.LearningAgent.on_finished.  
    

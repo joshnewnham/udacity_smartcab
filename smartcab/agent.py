@@ -32,12 +32,31 @@ class LearningAgent(Agent):
         self.state_action_visits = {}  # count of how many times the agent has visited the state_action pair
 
         self.action_labels = None  # q matrix 'columns' (actions)
+
+        #####
+        self.using_preloaded_q_matrix = False
+
         self.q_matrix = None  # q matrix
+
+        # self.q_matrix = {'red_right_obstructed': [0, 0, 0, 2.468524155631328],
+        #             'red_left_free': [1.3314034749672143, 0, -0.718325782192847, 0.9564762285714286],
+        #             'green_left_free': [1.2711882500674918, 0.8746975800730244, 2.3671708581445214, 0.9531292773079366],
+        #             'red_right_free': [1.2284549333333334, -0.7112824024181088, -0.7308284470551725, 2.398533066773934],
+        #             'green_right_free': [1.4830812448016857, 0.8296, 0.8738025291305571, 2.417800947120226],
+        #             'green_forward_free': [1.3980889598626929, 2.3746681687246927, 0.9544188216062917,
+        #                                    0.7964770040379209],
+        #             'red_forward_obstructed': [1.3488113257700967, -0.6879899054653977, -0.715812034664014,
+        #                                        0.78579290343571]}
+        #####
 
         self.action = None  # previous action taken
         self.reward = 0  # previous reward received
-        self.learning_rate = 0.6  # determines to what extend the newly acquired information will override the old informatino
-        self.discount_factor = 0.4  # determines the importance of future rewards
+        if self.using_preloaded_q_matrix:
+            self.learning_rate = 0.0  # using pre-loaded q-matrix therefore
+        else:
+            self.learning_rate = 0.5  # determines to what extend the newly acquired information will override the old informatino
+
+        self.discount_factor = 0.2  # determines the importance of future rewards
 
         self.epsilon = LearningAgent.INITIAL_EPSILON  # exploration variable
 
@@ -47,12 +66,16 @@ class LearningAgent(Agent):
         self.steps_taken = 0  # count how many steps we've taken
         self.accumulated_rewards = 0  # sum of rewards for a given run
         self.accumulated_random_counts = 0  # count how many times we make a random choice for a given run
+        self.accumulated_penalties = []
 
         self.recorded_deadlines = []
-        self.recorded_rewards = []
+        self.recorded_rewards = []  # rewards for each move
         self.recorded_random_choice = []
         self.recorded_run_rewards = []  # normalised self.accumulated_rewards for each run
         self.recorded_run_random_choices = []
+        self.recorded_run_abs_rewards = []
+        self.recorded_run_steps_taken = []
+        self.recorded_run_accumulated_penalties = []
 
 
         self.create_state_action_matrix()
@@ -72,6 +95,7 @@ class LearningAgent(Agent):
         self.steps_taken = 0
         self.accumulated_rewards = 0
         self.accumulated_random_counts = 0
+        self.accumulated_penalties = []
 
         if self.total_runs >= 100:
             self.print_q_matrix()
@@ -361,6 +385,12 @@ class LearningAgent(Agent):
 
         self.accumulated_rewards += self.reward
 
+        if self.reward < 0:
+            self.accumulated_penalties.append({
+                "state": self.state,
+                "action": self.action
+            })
+
         # if self.reward <= 0.5 and not next_action["is_random"]:
         #     print "bad move? \nstate: {} action: {}\ninputs: {}".format(self.state, self.action, inputs)
 
@@ -374,9 +404,14 @@ class LearningAgent(Agent):
         self.total_runs += 1.0
         self.recorded_deadlines.append(self.deadline)
 
+        self.recorded_run_abs_rewards.append(self.accumulated_rewards)
+        self.recorded_run_steps_taken.append(self.steps_taken)
+
         self.recorded_run_rewards.append(float(self.accumulated_rewards)/float(self.steps_taken))
         self.recorded_run_random_choices.append(float(self.accumulated_random_counts)/float(self.steps_taken))
         #self.recorded_run_random_choices.append(float(self.accumulated_random_counts))
+
+        self.recorded_run_accumulated_penalties.append(self.accumulated_penalties)
 
         print "\n=== ===\n"
         print "\n"
@@ -398,6 +433,14 @@ class LearningAgent(Agent):
             print "recorded_run_rewards = {}".format(self.recorded_run_rewards)
             print "recorded_run_random_choices = {}".format(self.recorded_run_random_choices)
 
+            print "recorded_run_abs_rewards = {}".format(self.recorded_run_abs_rewards)
+            print "recorded_run_steps_taken = {}".format(self.recorded_run_steps_taken)
+
+            print "recorded_run_accumulated_penalties = {}".format(self.recorded_run_accumulated_penalties)
+
+            run_penalties = [len(penalties) for penalties in self.recorded_run_accumulated_penalties]
+            print "run_penalties = {}".format(run_penalties)
+
             state_visits_labels = []
             state_visits_count = []
             for key, value in self.state_visits.iteritems():
@@ -418,9 +461,12 @@ def run():
     e.set_primary_agent(a, enforce_deadline=True)  # set agent to track
 
     # Now simulate it
-    sim = Simulator(e, update_delay=0.0)  # reduce update_delay to speed up simulation
-    sim.run(n_trials=100)  # press Esc or close pygame window to quit
-
+    if a.using_preloaded_q_matrix:
+        sim = Simulator(e, update_delay=1.0)  # reduce update_delay to speed up simulation
+        sim.run(n_trials=10)  # press Esc or close pygame window to quit
+    else:
+        sim = Simulator(e, update_delay=0.001)  # reduce update_delay to speed up simulation
+        sim.run(n_trials=100)  # press Esc or close pygame window to quit
 
 if __name__ == '__main__':
     run()
